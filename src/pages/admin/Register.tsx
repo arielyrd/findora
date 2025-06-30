@@ -11,18 +11,21 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/components/ui/use-toast";
 import { Lock, User } from "lucide-react";
 
+// Skema validasi untuk register admin
 const formSchema = z.object({
+  name: z.string().min(1, { message: "Nama harus diisi" }),
   email: z.string().email({ message: "Email harus valid" }),
-  password: z.string().min(1, { message: "Password harus diisi" }),
+  password: z.string().min(6, { message: "Password minimal 6 karakter" }),
 });
 
-const Login = () => {
+const RegisterAdmin = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      name: "",
       email: "",
       password: "",
     },
@@ -30,33 +33,30 @@ const Login = () => {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      const res = await fetch("http://localhost:8080/api/admin/login", {
+      const res = await fetch("http://localhost:8080/api/admin/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),
       });
       const data = await res.json();
       if (res.ok) {
-        // Simpan token ke localStorage agar fitur admin berjalan
-        if (data.token) {
-          localStorage.setItem("token", data.token);
-        }
         toast({
-          title: "Login Berhasil",
-          description: "Selamat datang di dashboard admin",
+          title: "Registrasi Berhasil",
+          description: "Admin berhasil didaftarkan! Mengarahkan ke halaman login...",
         });
-        sessionStorage.setItem("adminLoggedIn", "true");
-        navigate("/admin/dashboard");
+        setTimeout(() => {
+          navigate("/login_admin");
+        }, 2000);
       } else {
         toast({
-          title: "Login Gagal",
-          description: data.message || "Email atau password salah",
+          title: "Registrasi Gagal",
+          description: data.message || "Gagal mendaftar",
           variant: "destructive",
         });
       }
     } catch (err) {
       toast({
-        title: "Login Gagal",
+        title: "Registrasi Gagal",
         description: "Terjadi kesalahan koneksi",
         variant: "destructive",
       });
@@ -69,15 +69,33 @@ const Login = () => {
         <CardHeader className="space-y-2 text-center">
           <div className="flex justify-center mb-2">
             <span className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-indigo-100 shadow-lg">
-              <Lock className="w-8 h-8 text-indigo-600" />
+              <User className="w-8 h-8 text-indigo-600" />
             </span>
           </div>
           <CardTitle className="text-3xl font-extrabold text-indigo-700 drop-shadow">Findora</CardTitle>
-          <CardDescription className="text-lg text-gray-600">Login Admin</CardDescription>
+          <CardDescription className="text-lg text-gray-600">Register Admin</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      <span className="flex items-center gap-2">
+                        <User className="w-4 h-4 text-indigo-500" />
+                        Nama
+                      </span>
+                    </FormLabel>
+                    <FormControl>
+                      <Input placeholder="Masukkan nama" {...field} className="focus:ring-2 focus:ring-indigo-400 transition" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={form.control}
                 name="email"
@@ -96,7 +114,6 @@ const Login = () => {
                   </FormItem>
                 )}
               />
-
               <FormField
                 control={form.control}
                 name="password"
@@ -115,9 +132,8 @@ const Login = () => {
                   </FormItem>
                 )}
               />
-
               <Button type="submit" className="w-full bg-gradient-to-r from-indigo-500 to-blue-500 hover:from-indigo-600 hover:to-blue-600 text-white font-semibold py-2 rounded-lg shadow-md transition">
-                Login
+                Register
               </Button>
             </form>
           </Form>
@@ -131,4 +147,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default RegisterAdmin;

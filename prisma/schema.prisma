@@ -1,0 +1,77 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id           Int         @id @default(autoincrement())
+  name         String
+  email        String      @unique
+  passwordHash String
+  foundItems   FoundItem[]
+  createdAt    DateTime    @default(now())
+}
+
+model User {
+  id           Int            @id @default(autoincrement())
+  name         String
+  nim          String
+  email        String
+  phone        String?
+  reports      LostReport[]
+  createdAt    DateTime       @default(now())
+  Notification Notification[]
+}
+
+model LostReport {
+  id          Int        @id @default(autoincrement())
+  userId      Int
+  user        User       @relation(fields: [userId], references: [id])
+  category    String
+  description String
+  lostDate    DateTime
+  status      String     @default("Hilang")
+  createdAt   DateTime   @default(now())
+  matchings   Matching[]
+}
+
+model FoundItem {
+  id            Int            @id @default(autoincrement())
+  adminId       Int?
+  admin         Admin?         @relation(fields: [adminId], references: [id])
+  name          String
+  brand         String?
+  color         String?
+  category      String
+  locationFound String
+  foundDate     DateTime
+  description   String?
+  photoUrl      String?
+  status        String         @default("Ditemukan")
+  createdAt     DateTime       @default(now())
+  notifications Notification[]
+  matchings     Matching[]
+}
+
+model Notification {
+  id          Int        @id @default(autoincrement())
+  userId      Int
+  user        User       @relation(fields: [userId], references: [id])
+  foundItemId Int?
+  foundItem   FoundItem? @relation(fields: [foundItemId], references: [id])
+  message     String
+  sentAt      DateTime   @default(now())
+}
+
+model Matching {
+  id           Int        @id @default(autoincrement())
+  lostReportId Int
+  foundItemId  Int
+  lostReport   LostReport @relation(fields: [lostReportId], references: [id])
+  foundItem    FoundItem  @relation(fields: [foundItemId], references: [id])
+  matchedAt    DateTime   @default(now())
+}
