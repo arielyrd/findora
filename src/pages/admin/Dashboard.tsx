@@ -37,10 +37,25 @@ type Notification = {
   read: boolean;
 };
 
+// Type untuk laporan user
+type LostReport = {
+  id: number;
+  name: string;
+  nim: string;
+  email: string;
+  phone: string;
+  category: string;
+  lostDate: string;
+  description: string;
+  status: string;
+  createdAt: string;
+};
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [items, setItems] = useState<FoundItem[]>([]);
+  const [lostReports, setLostReports] = useState<LostReport[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -97,8 +112,20 @@ const Dashboard = () => {
     setLoading(false);
   };
 
+  // Fetch LostReport untuk tabel laporan user
+  const fetchLostReports = async () => {
+    try {
+      const res = await fetch("http://localhost:8080/api/lost-reports");
+      const data = await res.json();
+      setLostReports(data);
+    } catch {
+      toast({ title: "Gagal memuat laporan user", variant: "destructive" });
+    }
+  };
+
   useEffect(() => {
     fetchItems();
+    fetchLostReports();
   }, []);
 
   // Logout
@@ -132,7 +159,6 @@ const Dashboard = () => {
     const res = await fetch(`http://localhost:8080/api/found-items/${id}/verify`, { method: "PUT" });
     if (res.ok) {
       toast({ title: "Barang diverifikasi" });
-      // Trigger email ke pelapor (opsional, backend harus support endpoint ini)
       await fetch(`http://localhost:8080/api/found-items/${id}/notify`, { method: "POST" });
       fetchItems();
     } else {
@@ -387,6 +413,7 @@ const Dashboard = () => {
           </Dialog>
         </div>
 
+        {/* Barang ditemukan */}
         <div className="flex gap-4 mb-4">
           <Select value={sortBy} onValueChange={setSortBy}>
             <SelectTrigger className="w-[180px]">
@@ -576,6 +603,51 @@ const Dashboard = () => {
             </Pagination>
           </div>
         </div>
+
+        {/* TABEL LAPORAN USER */}
+        <div className="mt-10">
+          <h2 className="text-xl font-bold mb-4">Laporan Barang Hilang dari User</h2>
+          <div className="overflow-auto rounded border">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr>
+                  <th className="px-4 py-2">Nama</th>
+                  <th className="px-4 py-2">NIM</th>
+                  <th className="px-4 py-2">Email</th>
+                  <th className="px-4 py-2">No. HP</th>
+                  <th className="px-4 py-2">Kategori</th>
+                  <th className="px-4 py-2">Tanggal Hilang</th>
+                  <th className="px-4 py-2">Deskripsi</th>
+                  <th className="px-4 py-2">Status</th>
+                  <th className="px-4 py-2">Waktu Lapor</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lostReports.map((report) => (
+                  <tr key={report.id}>
+                    <td className="border px-4 py-2">{report.name}</td>
+                    <td className="border px-4 py-2">{report.nim}</td>
+                    <td className="border px-4 py-2">{report.email}</td>
+                    <td className="border px-4 py-2">{report.phone}</td>
+                    <td className="border px-4 py-2">{report.category}</td>
+                    <td className="border px-4 py-2">{new Date(report.lostDate).toLocaleDateString()}</td>
+                    <td className="border px-4 py-2">{report.description}</td>
+                    <td className="border px-4 py-2">{report.status}</td>
+                    <td className="border px-4 py-2">{new Date(report.createdAt).toLocaleString()}</td>
+                  </tr>
+                ))}
+                {lostReports.length === 0 && (
+                  <tr>
+                    <td colSpan={9} className="text-center py-4 text-gray-500">
+                      Belum ada laporan
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {/* END TABEL LAPORAN USER */}
       </div>
     </div>
   );

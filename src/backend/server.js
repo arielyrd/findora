@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const foundItemsRouter = require("./foundItems");
 const adminsRouter = require("./admins");
+const lostReportsRouter = require("./lostReports");
 
 const app = express();
 
@@ -13,6 +14,7 @@ app.use(express.json());
 app.use("/api/found-items", foundItemsRouter);
 // Routing API admin (login & register)
 app.use("/api/admin", adminsRouter);
+app.use("/api/lost-reports", lostReportsRouter);
 
 // Health check endpoint
 app.get("/api/health", (req, res) => res.json({ status: "ok" }));

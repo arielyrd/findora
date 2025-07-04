@@ -16,21 +16,12 @@ model Admin {
   createdAt    DateTime    @default(now())
 }
 
-model User {
-  id           Int            @id @default(autoincrement())
-  name         String
-  nim          String
-  email        String
-  phone        String?
-  reports      LostReport[]
-  createdAt    DateTime       @default(now())
-  Notification Notification[]
-}
-
 model LostReport {
   id          Int        @id @default(autoincrement())
-  userId      Int
-  user        User       @relation(fields: [userId], references: [id])
+  name        String
+  nim         String
+  email       String
+  phone       String
   category    String
   description String
   lostDate    DateTime
@@ -59,8 +50,6 @@ model FoundItem {
 
 model Notification {
   id          Int        @id @default(autoincrement())
-  userId      Int
-  user        User       @relation(fields: [userId], references: [id])
   foundItemId Int?
   foundItem   FoundItem? @relation(fields: [foundItemId], references: [id])
   message     String

@@ -1,4 +1,3 @@
-
 import React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -18,41 +17,27 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
 
 const formSchema = z.object({
-  name: z.string().min(2, {
-    message: "Nama harus diisi minimal 2 karakter",
-  }),
-  nim: z.string().min(3, {
-    message: "NIM harus diisi dengan benar",
-  }),
-  email: z.string().email({
-    message: "Email tidak valid",
-  }),
-  phone: z.string().min(10, {
-    message: "Nomor telepon harus diisi minimal 10 digit",
-  }),
-  category: z.string({
-    required_error: "Silahkan pilih kategori barang",
-  }),
-  lostDate: z.date({
-    required_error: "Tanggal kehilangan harus diisi",
-  }),
-  description: z.string().min(10, {
-    message: "Deskripsi harus diisi minimal 10 karakter",
-  }),
+  name: z.string().min(2, { message: "Nama harus diisi minimal 2 karakter" }),
+  nim: z.string().min(3, { message: "NIM harus diisi dengan benar" }),
+  email: z.string().email({ message: "Email tidak valid" }),
+  phone: z.string().min(10, { message: "Nomor telepon harus diisi minimal 10 digit" }),
+  category: z.string({ required_error: "Silahkan pilih kategori barang" }),
+  lostDate: z.date({ required_error: "Tanggal kehilangan harus diisi" }),
+  description: z.string().min(10, { message: "Deskripsi harus diisi minimal 10 karakter" }),
 });
 
 const categories = [
-  { value: "electronic", label: "Elektronik" },
-  { value: "document", label: "Dokumen" },
-  { value: "clothing", label: "Pakaian" },
-  { value: "accessories", label: "Aksesoris" },
-  { value: "book", label: "Buku" },
-  { value: "other", label: "Lainnya" },
+  { value: "Elektronik", label: "Elektronik" },
+  { value: "Dokumen", label: "Dokumen" },
+  { value: "Pakaian", label: "Pakaian" },
+  { value: "Aksesoris", label: "Aksesoris" },
+  { value: "Buku", label: "Buku" },
+  { value: "Lainnya", label: "Lainnya" },
 ];
 
 const Index = () => {
   const { toast } = useToast();
-  
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -60,22 +45,35 @@ const Index = () => {
       nim: "",
       email: "",
       phone: "",
+      category: "",
+      lostDate: undefined,
       description: "",
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    // Simulasi pengiriman data ke backend
-    console.log(values);
-    
-    // Tampilkan toast notifikasi berhasil
-    toast({
-      title: "Laporan Berhasil Terkirim",
-      description: "Anda akan dihubungi jika barang ditemukan.",
-    });
-    
-    // Reset form setelah berhasil
-    form.reset();
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    try {
+      const res = await fetch("http://localhost:8080/api/lost-reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...values,
+          lostDate: values.lostDate.toISOString(),
+        }),
+      });
+      if (!res.ok) throw new Error("Gagal mengirim laporan");
+      toast({
+        title: "Laporan Berhasil Terkirim",
+        description: "Anda akan dihubungi jika barang ditemukan.",
+      });
+      form.reset();
+    } catch (err) {
+      toast({
+        title: "Gagal mengirim laporan",
+        description: "Terjadi kesalahan, coba lagi.",
+        variant: "destructive",
+      });
+    }
   }
 
   return (
@@ -89,9 +87,7 @@ const Index = () => {
         <Card className="shadow-lg border-t-4 border-t-indigo-500">
           <CardHeader>
             <CardTitle className="text-2xl">Formulir Laporan Barang Hilang</CardTitle>
-            <CardDescription>
-              Silakan isi formulir di bawah ini untuk melaporkan barang yang hilang
-            </CardDescription>
+            <CardDescription>Silakan isi formulir di bawah ini untuk melaporkan barang yang hilang</CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -110,7 +106,6 @@ const Index = () => {
                       </FormItem>
                     )}
                   />
-
                   <FormField
                     control={form.control}
                     name="nim"
@@ -124,7 +119,6 @@ const Index = () => {
                       </FormItem>
                     )}
                   />
-
                   <FormField
                     control={form.control}
                     name="email"
@@ -138,7 +132,6 @@ const Index = () => {
                       </FormItem>
                     )}
                   />
-
                   <FormField
                     control={form.control}
                     name="phone"
@@ -152,7 +145,6 @@ const Index = () => {
                       </FormItem>
                     )}
                   />
-
                   <FormField
                     control={form.control}
                     name="category"
@@ -177,7 +169,6 @@ const Index = () => {
                       </FormItem>
                     )}
                   />
-
                   <FormField
                     control={form.control}
                     name="lostDate"
@@ -187,30 +178,14 @@ const Index = () => {
                         <Popover>
                           <PopoverTrigger asChild>
                             <FormControl>
-                              <Button
-                                variant={"outline"}
-                                className={cn(
-                                  "pl-3 text-left font-normal",
-                                  !field.value && "text-muted-foreground"
-                                )}
-                              >
-                                {field.value ? (
-                                  format(field.value, "PPP")
-                                ) : (
-                                  <span>Pilih tanggal</span>
-                                )}
+                              <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                {field.value ? format(field.value, "PPP") : <span>Pilih tanggal</span>}
                                 <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                               </Button>
                             </FormControl>
                           </PopoverTrigger>
                           <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={field.value}
-                              onSelect={field.onChange}
-                              initialFocus
-                              className={cn("p-3 pointer-events-auto")}
-                            />
+                            <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus className={cn("p-3 pointer-events-auto")} />
                           </PopoverContent>
                         </Popover>
                         <FormMessage />
@@ -218,7 +193,6 @@ const Index = () => {
                     )}
                   />
                 </div>
-
                 <FormField
                   control={form.control}
                   name="description"
@@ -226,20 +200,13 @@ const Index = () => {
                     <FormItem>
                       <FormLabel>Deskripsi Detail Barang</FormLabel>
                       <FormControl>
-                        <Textarea 
-                          placeholder="Berikan deskripsi lengkap tentang barang Anda (minimal 10 karakter)" 
-                          className="h-32" 
-                          {...field} 
-                        />
+                        <Textarea placeholder="Berikan deskripsi lengkap tentang barang Anda (minimal 10 karakter)" className="h-32" {...field} />
                       </FormControl>
-                      <FormDescription>
-                        Semakin lengkap deskripsi, semakin besar kemungkinan barang Anda ditemukan
-                      </FormDescription>
+                      <FormDescription>Semakin lengkap deskripsi, semakin besar kemungkinan barang Anda ditemukan</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-
                 <div className="text-center">
                   <Button type="submit" className="w-full md:w-auto px-10 bg-indigo-600 hover:bg-indigo-700">
                     Kirim Laporan
@@ -248,9 +215,7 @@ const Index = () => {
               </form>
             </Form>
           </CardContent>
-          <CardFooter className="flex justify-center text-sm text-gray-500">
-            Findora &copy; 2025 - Sistem Pelaporan Barang Hilang Kampus
-          </CardFooter>
+          <CardFooter className="flex justify-center text-sm text-gray-500">Findora &copy; 2025 - Sistem Pelaporan Barang Hilang Kampus</CardFooter>
         </Card>
       </div>
     </div>
