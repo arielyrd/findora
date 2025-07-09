@@ -14,6 +14,7 @@ app.use(express.json());
 app.use("/api/found-items", foundItemsRouter);
 // Routing API admin (login & register)
 app.use("/api/admin", adminsRouter);
+
 app.use("/api/lost-reports", lostReportsRouter);
 
 // Health check endpoint

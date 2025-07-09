@@ -1,17 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Filter, LogOut, Plus, Edit, Trash2, Bell, Image as ImageIcon, Sun, Moon } from "lucide-react";
+import { Search, Filter, LogOut, Plus, Edit, Trash2, Bell, Mail, Image as ImageIcon, Sun, Moon, CheckCircle, XCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
-import NotificationList from "@/components/NotificationList";
 import ItemDetail from "@/components/ItemDetail";
 
 // Type untuk barang ditemukan
@@ -30,13 +29,6 @@ type FoundItem = {
   verified?: boolean;
 };
 
-type Notification = {
-  id: number;
-  message: string;
-  date: string;
-  read: boolean;
-};
-
 // Type untuk laporan user
 type LostReport = {
   id: number;
@@ -51,6 +43,15 @@ type LostReport = {
   createdAt: string;
 };
 
+type Notification = {
+  id: number;
+  message: string;
+  date: string;
+  read: boolean;
+};
+
+const ITEMS_PER_PAGE = 5;
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -62,6 +63,9 @@ const Dashboard = () => {
   const [sortBy, setSortBy] = useState<string>("default");
   const [loading, setLoading] = useState(true);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+
   // Dark mode
   const [darkMode, setDarkMode] = useState(false);
 
@@ -71,14 +75,11 @@ const Dashboard = () => {
 
   // Notifikasi state
   const [notifOpen, setNotifOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([
-    { id: 1, message: "Barang baru ditemukan!", date: "2025-06-28", read: false },
-    { id: 2, message: "Barang hilang telah dikembalikan.", date: "2025-06-27", read: true },
-  ]);
-  const unreadCount = notifications.filter((n) => !n.read).length;
-  const handleMarkRead = (id: number) => {
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
-  };
+  const [inboxOpen, setInboxOpen] = useState(false);
+
+  // Notifikasi laporan baru
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [lastReportId, setLastReportId] = useState<number | null>(null);
 
   // Detail barang state
   const [detailOpen, setDetailOpen] = useState(false);
@@ -112,12 +113,29 @@ const Dashboard = () => {
     setLoading(false);
   };
 
-  // Fetch LostReport untuk tabel laporan user
+  // Fetch LostReport untuk inbox laporan user
   const fetchLostReports = async () => {
     try {
       const res = await fetch("http://localhost:8080/api/lost-reports");
       const data = await res.json();
       setLostReports(data);
+      // Notifikasi: cek laporan baru
+      if (data.length > 0) {
+        const newReports = data.filter((r) => r.status !== "Selesai");
+        if (lastReportId !== null && newReports.length > 0 && newReports[0].id !== lastReportId) {
+          // Tambahkan notifikasi baru
+          setNotifications((prev) => [
+            {
+              id: newReports[0].id,
+              message: `Laporan baru dari ${newReports[0].name} (${newReports[0].category})`,
+              date: new Date(newReports[0].createdAt).toLocaleDateString(),
+              read: false,
+            },
+            ...prev,
+          ]);
+        }
+        if (newReports.length > 0) setLastReportId(newReports[0].id);
+      }
     } catch {
       toast({ title: "Gagal memuat laporan user", variant: "destructive" });
     }
@@ -126,7 +144,17 @@ const Dashboard = () => {
   useEffect(() => {
     fetchItems();
     fetchLostReports();
+    // eslint-disable-next-line
   }, []);
+
+  // Polling laporan baru setiap 10 detik
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchLostReports();
+    }, 10000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line
+  }, [lastReportId]);
 
   // Logout
   const handleLogout = () => {
@@ -156,13 +184,36 @@ const Dashboard = () => {
 
   // Verifikasi barang
   const handleVerify = async (id: number) => {
-    const res = await fetch(`http://localhost:8080/api/found-items/${id}/verify`, { method: "PUT" });
+    const token = localStorage.getItem("token");
+    const res = await fetch(`http://localhost:8080/api/found-items/${id}/verify`, {
+      method: "PUT",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
     if (res.ok) {
       toast({ title: "Barang diverifikasi" });
-      await fetch(`http://localhost:8080/api/found-items/${id}/notify`, { method: "POST" });
       fetchItems();
     } else {
       toast({ title: "Gagal verifikasi", variant: "destructive" });
+    }
+  };
+
+  // Cancel verifikasi barang
+  const handleUnverify = async (id: number) => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`http://localhost:8080/api/found-items/${id}/unverify`, {
+        method: "PUT",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) {
+        toast({ title: "Verifikasi dibatalkan" });
+        fetchItems();
+      } else {
+        const data = await res.json();
+        toast({ title: "Gagal membatalkan verifikasi", description: data.message || "", variant: "destructive" });
+      }
+    } catch (err) {
+      toast({ title: "Gagal membatalkan verifikasi", variant: "destructive" });
     }
   };
 
@@ -246,6 +297,33 @@ const Dashboard = () => {
     }
   };
 
+  // Hapus laporan user
+  const deleteReport = async (id: number) => {
+    if (!window.confirm("Yakin ingin menghapus laporan ini?")) return;
+    try {
+      await fetch(`http://localhost:8080/api/lost-reports/${id}`, { method: "DELETE" });
+      setLostReports((prev) => prev.filter((r) => r.id !== id));
+      toast({ title: "Laporan dihapus" });
+    } catch {
+      toast({ title: "Gagal menghapus laporan", variant: "destructive" });
+    }
+  };
+
+  // Tandai selesai (ubah status)
+  const markDone = async (id: number) => {
+    try {
+      await fetch(`http://localhost:8080/api/lost-reports/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "Selesai" }),
+      });
+      setLostReports((prev) => prev.map((r) => (r.id === id ? { ...r, status: "Selesai" } : r)));
+      toast({ title: "Laporan ditandai selesai" });
+    } catch {
+      toast({ title: "Gagal update status", variant: "destructive" });
+    }
+  };
+
   // Filter data
   const filteredItems = items.filter((item) => {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -262,6 +340,10 @@ const Dashboard = () => {
     if (sortBy === "name_desc") return b.name.localeCompare(a.name);
     return 0;
   });
+
+  // Pagination logic
+  const totalPages = Math.ceil(sortedItems.length / ITEMS_PER_PAGE);
+  const paginatedItems = sortedItems.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   // Badge status
   const renderStatusBadge = (status: string) => {
@@ -283,6 +365,22 @@ const Dashboard = () => {
     return <Badge className="bg-yellow-500">Belum Diverifikasi</Badge>;
   };
 
+  // Pagination handler
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages) setCurrentPage(page);
+  };
+
+  // Jumlah notifikasi belum dibaca
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
+  // Mark notification as read
+  const markNotifRead = (id: number) => {
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+  };
+
+  // Jumlah laporan belum selesai
+  const newReportCount = lostReports.filter((r) => r.status !== "Selesai").length;
+
   return (
     <div className={`${darkMode ? "dark bg-gray-900 text-white" : "bg-gradient-to-br from-indigo-50 to-blue-100"} min-h-screen flex`}>
       {/* Sidebar */}
@@ -301,10 +399,16 @@ const Dashboard = () => {
             <a href="#" className="flex items-center px-3 py-2 bg-indigo-50 text-indigo-600 rounded-md font-semibold dark:bg-indigo-900 dark:text-indigo-200">
               <Bell className="mr-2 h-4 w-4" /> Dashboard
             </a>
-            <a href="#" className="flex items-center px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-md relative dark:text-gray-200 dark:hover:bg-gray-700" onClick={() => setNotifOpen(true)}>
+            <button className="flex items-center w-full px-3 py-2 text-blue-600 hover:bg-blue-50 rounded-md relative dark:text-blue-300 dark:hover:bg-gray-700" onClick={() => setNotifOpen(true)}>
+              <Bell className="mr-2 h-4 w-4" />
               Notifikasi
-              {unreadCount > 0 && <Badge className="ml-2 bg-red-500">{unreadCount}</Badge>}
-            </a>
+              {unreadCount > 0 && <Badge className="ml-2 bg-red-500 text-white">{unreadCount}</Badge>}
+            </button>
+            <button className="flex items-center w-full px-3 py-2 text-indigo-600 hover:bg-indigo-50 rounded-md relative dark:text-indigo-300 dark:hover:bg-gray-700" onClick={() => setInboxOpen(true)}>
+              <Mail className="mr-2 h-4 w-4" />
+              Inbox
+              {newReportCount > 0 && <Badge className="ml-2 bg-yellow-500 text-white">{newReportCount}</Badge>}
+            </button>
             <button onClick={handleLogout} className="flex items-center w-full px-3 py-2 text-red-500 hover:bg-red-50 rounded-md dark:hover:bg-gray-700">
               <LogOut className="mr-2 h-4 w-4" /> Logout
             </button>
@@ -316,11 +420,96 @@ const Dashboard = () => {
       <Dialog open={notifOpen} onOpenChange={setNotifOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Notifikasi</DialogTitle>
+            <DialogTitle>
+              <div className="flex items-center gap-2">
+                <Bell className="w-5 h-5" /> Notifikasi
+              </div>
+            </DialogTitle>
           </DialogHeader>
-          <NotificationList notifications={notifications} onMarkRead={handleMarkRead} />
+          <div className="space-y-2">
+            {notifications.length === 0 && <div className="text-center text-gray-500 py-8">Belum ada notifikasi baru.</div>}
+            {notifications.map((notif) => (
+              <div key={notif.id} className={`rounded-lg px-4 py-3 mb-2 shadow-sm border flex items-center justify-between ${!notif.read ? "bg-indigo-50" : "bg-white"}`}>
+                <div>
+                  <div className="font-medium">{notif.message}</div>
+                  <div className="text-xs text-gray-500">{notif.date}</div>
+                </div>
+                {!notif.read && (
+                  <Badge className="bg-blue-600 text-white cursor-pointer ml-2" onClick={() => markNotifRead(notif.id)}>
+                    Baru
+                  </Badge>
+                )}
+              </div>
+            ))}
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setNotifOpen(false)}>
+              Tutup
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Inbox Dialog */}
+      <Dialog open={inboxOpen} onOpenChange={setInboxOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              <div className="flex items-center gap-2">
+                <Mail className="w-5 h-5" /> Inbox Laporan Masuk
+              </div>
+            </DialogTitle>
+            <DialogDescription>Daftar laporan barang hilang yang masuk ke sistem.</DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto px-1">
+            {lostReports.length === 0 ? (
+              <div className="text-center text-gray-500 py-8">Tidak ada laporan masuk.</div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {lostReports.map((report) => (
+                  <Card key={report.id} className="shadow border-t-4 border-t-indigo-500 hover:shadow-lg transition">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <span className="font-semibold">{report.name}</span>
+                        <span className="text-xs text-gray-400">({report.nim})</span>
+                        <Badge className={report.status === "Selesai" ? "bg-green-500" : "bg-yellow-500"}>{report.status}</Badge>
+                      </CardTitle>
+                      <CardDescription className="text-xs text-gray-500">
+                        {report.category} &middot; {new Date(report.lostDate).toLocaleDateString()}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-1 text-sm">
+                      <div>
+                        <span className="font-semibold">Email:</span> {report.email}
+                      </div>
+                      <div>
+                        <span className="font-semibold">No. HP:</span> {report.phone}
+                      </div>
+                      <div>
+                        <span className="font-semibold">Deskripsi:</span>
+                        <div className="text-gray-700 dark:text-gray-200">{report.description}</div>
+                      </div>
+                      <div>
+                        <span className="font-semibold">Waktu Lapor:</span> {new Date(report.createdAt).toLocaleString()}
+                      </div>
+                    </CardContent>
+                    <CardFooter className="flex gap-2 justify-end">
+                      {report.status !== "Selesai" && (
+                        <Button size="sm" variant="outline" className="text-green-600 border-green-600" onClick={() => markDone(report.id)}>
+                          <CheckCircle className="w-4 h-4 mr-1" /> Tandai Selesai
+                        </Button>
+                      )}
+                      <Button size="sm" variant="outline" className="text-red-500 border-red-500" onClick={() => deleteReport(report.id)}>
+                        <Trash2 className="w-4 h-4 mr-1" /> Hapus
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInboxOpen(false)}>
               Tutup
             </Button>
           </DialogFooter>
@@ -347,11 +536,9 @@ const Dashboard = () => {
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold">Kelola Barang Hilang & Ditemukan</h1>
           <Dialog open={showDialog} onOpenChange={setShowDialog}>
-            <DialogTrigger asChild>
-              <Button onClick={() => openDialog()}>
-                <Plus className="mr-2 h-4 w-4" /> Tambah Item Baru
-              </Button>
-            </DialogTrigger>
+            <Button onClick={() => openDialog()}>
+              <Plus className="mr-2 h-4 w-4" /> Tambah Item Baru
+            </Button>
             <DialogContent className="sm:max-w-lg">
               <DialogHeader>
                 <DialogTitle>{editItem ? "Edit Barang" : "Tambah Item Baru"}</DialogTitle>
@@ -518,8 +705,8 @@ const Dashboard = () => {
                       Memuat data...
                     </TableCell>
                   </TableRow>
-                ) : sortedItems.length > 0 ? (
-                  sortedItems.map((item) => (
+                ) : paginatedItems.length > 0 ? (
+                  paginatedItems.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell>
                         {item.photoUrl ? (
@@ -550,9 +737,13 @@ const Dashboard = () => {
                       <TableCell>{renderVerifyBadge(item.verified)}</TableCell>
                       <TableCell>
                         <div className="flex space-x-2">
-                          {!item.verified && (
+                          {!item.verified ? (
                             <Button variant="outline" size="sm" className="text-green-600" onClick={() => handleVerify(item.id)}>
                               Verifikasi
+                            </Button>
+                          ) : (
+                            <Button variant="outline" size="sm" className="text-yellow-600" onClick={() => handleUnverify(item.id)}>
+                              <XCircle className="h-4 w-4 mr-1" /> Batalkan Verifikasi
                             </Button>
                           )}
                           <Button variant="outline" size="sm" onClick={() => openDialog(item)}>
@@ -576,78 +767,27 @@ const Dashboard = () => {
             </Table>
           </div>
 
-          <div className="mt-6">
+          {/* Pagination */}
+          <div className="mt-6 flex justify-center">
             <Pagination>
               <PaginationContent>
                 <PaginationItem>
-                  <PaginationPrevious href="#" />
+                  <PaginationPrevious href="#" onClick={() => handlePageChange(currentPage - 1)} />
                 </PaginationItem>
+                {[...Array(totalPages)].map((_, idx) => (
+                  <PaginationItem key={idx}>
+                    <PaginationLink href="#" isActive={currentPage === idx + 1} onClick={() => handlePageChange(idx + 1)}>
+                      {idx + 1}
+                    </PaginationLink>
+                  </PaginationItem>
+                ))}
                 <PaginationItem>
-                  <PaginationLink href="#" isActive>
-                    1
-                  </PaginationLink>
-                </PaginationItem>
-                <PaginationItem>
-                  <PaginationLink href="#">2</PaginationLink>
-                </PaginationItem>
-                <PaginationItem>
-                  <PaginationLink href="#">3</PaginationLink>
-                </PaginationItem>
-                <PaginationItem>
-                  <PaginationEllipsis />
-                </PaginationItem>
-                <PaginationItem>
-                  <PaginationNext href="#" />
+                  <PaginationNext href="#" onClick={() => handlePageChange(currentPage + 1)} />
                 </PaginationItem>
               </PaginationContent>
             </Pagination>
           </div>
         </div>
-
-        {/* TABEL LAPORAN USER */}
-        <div className="mt-10">
-          <h2 className="text-xl font-bold mb-4">Laporan Barang Hilang dari User</h2>
-          <div className="overflow-auto rounded border">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr>
-                  <th className="px-4 py-2">Nama</th>
-                  <th className="px-4 py-2">NIM</th>
-                  <th className="px-4 py-2">Email</th>
-                  <th className="px-4 py-2">No. HP</th>
-                  <th className="px-4 py-2">Kategori</th>
-                  <th className="px-4 py-2">Tanggal Hilang</th>
-                  <th className="px-4 py-2">Deskripsi</th>
-                  <th className="px-4 py-2">Status</th>
-                  <th className="px-4 py-2">Waktu Lapor</th>
-                </tr>
-              </thead>
-              <tbody>
-                {lostReports.map((report) => (
-                  <tr key={report.id}>
-                    <td className="border px-4 py-2">{report.name}</td>
-                    <td className="border px-4 py-2">{report.nim}</td>
-                    <td className="border px-4 py-2">{report.email}</td>
-                    <td className="border px-4 py-2">{report.phone}</td>
-                    <td className="border px-4 py-2">{report.category}</td>
-                    <td className="border px-4 py-2">{new Date(report.lostDate).toLocaleDateString()}</td>
-                    <td className="border px-4 py-2">{report.description}</td>
-                    <td className="border px-4 py-2">{report.status}</td>
-                    <td className="border px-4 py-2">{new Date(report.createdAt).toLocaleString()}</td>
-                  </tr>
-                ))}
-                {lostReports.length === 0 && (
-                  <tr>
-                    <td colSpan={9} className="text-center py-4 text-gray-500">
-                      Belum ada laporan
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-        {/* END TABEL LAPORAN USER */}
       </div>
     </div>
   );

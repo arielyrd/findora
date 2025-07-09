@@ -66,6 +66,32 @@ router.post("/", authenticateToken, upload.single("photo"), async (req, res) => 
   }
 });
 
+// PUT verifikasi barang ditemukan (proteksi JWT)
+router.put("/:id/verify", authenticateToken, async (req, res) => {
+  try {
+    const updated = await prisma.foundItem.update({
+      where: { id: Number(req.params.id) },
+      data: { verified: true },
+    });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: "Gagal verifikasi", error: err.message });
+  }
+});
+
+// PUT batalkan verifikasi barang ditemukan (proteksi JWT)
+router.put("/:id/unverify", authenticateToken, async (req, res) => {
+  try {
+    const updated = await prisma.foundItem.update({
+      where: { id: Number(req.params.id) },
+      data: { verified: false },
+    });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: "Gagal membatalkan verifikasi", error: err.message });
+  }
+});
+
 // PUT edit barang ditemukan (proteksi JWT)
 router.put("/:id", authenticateToken, upload.single("photo"), async (req, res) => {
   try {

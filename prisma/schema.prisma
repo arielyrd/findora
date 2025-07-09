@@ -43,6 +43,7 @@ model FoundItem {
   description   String?
   photoUrl      String?
   status        String         @default("Ditemukan")
+  verified      Boolean        @default(false)
   createdAt     DateTime       @default(now())
   notifications Notification[]
   matchings     Matching[]
