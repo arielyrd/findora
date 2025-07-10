@@ -2,14 +2,15 @@ import React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, User, Mail as MailIcon, Phone, BookUser, Tag } from "lucide-react";
 import { format } from "date-fns";
+import { FaSearch, FaBoxOpen } from "react-icons/fa"; // Icon animasi
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -58,7 +59,7 @@ const Index = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...values,
-          lostDate: values.lostDate.toISOString(),
+          lostDate: values.lostDate ? values.lostDate.toISOString() : undefined,
         }),
       });
       if (!res.ok) throw new Error("Gagal mengirim laporan");
@@ -77,17 +78,24 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-indigo-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-10">
-          <h1 className="text-4xl font-bold text-indigo-600 mb-2">Findora</h1>
-          <p className="text-xl text-gray-600">Platform Laporan Barang Hilang Kampus</p>
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-2xl mx-auto">
+        {/* Hero Icon Animasi */}
+        <div className="flex flex-col items-center mb-8 animate-fade-in">
+          <div className="relative">
+            <FaBoxOpen className="text-indigo-500 drop-shadow-lg" size={64} />
+            <FaSearch className="absolute text-yellow-400 animate-bounce" size={32} style={{ left: 40, top: 30 }} />
+          </div>
+          <h1 className="text-5xl font-extrabold text-indigo-700 mb-2 drop-shadow mt-4">Findora</h1>
+          <p className="text-lg text-gray-600 font-medium">Platform Laporan Barang Hilang Kampus</p>
         </div>
 
-        <Card className="shadow-lg border-t-4 border-t-indigo-500">
+        <Card className="shadow-2xl border-0 rounded-2xl bg-white/90 backdrop-blur-md animate-fade-in">
           <CardHeader>
-            <CardTitle className="text-2xl">Formulir Laporan Barang Hilang</CardTitle>
-            <CardDescription>Silakan isi formulir di bawah ini untuk melaporkan barang yang hilang</CardDescription>
+            <CardTitle className="text-2xl text-indigo-700 font-bold flex items-center gap-2">
+              <Tag className="w-6 h-6 text-indigo-500" /> Formulir Laporan Barang Hilang
+            </CardTitle>
+            <CardDescription className="text-gray-600">Isi formulir berikut dengan lengkap dan jelas agar peluang barang Anda ditemukan semakin besar.</CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -100,7 +108,10 @@ const Index = () => {
                       <FormItem>
                         <FormLabel>Nama Lengkap</FormLabel>
                         <FormControl>
-                          <Input placeholder="Masukkan nama lengkap" {...field} />
+                          <div className="relative">
+                            <User className="absolute left-3 top-3 h-4 w-4 text-indigo-400" />
+                            <Input placeholder="Masukkan nama lengkap" {...field} className="pl-10 focus:ring-2 focus:ring-indigo-300" />
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -113,7 +124,10 @@ const Index = () => {
                       <FormItem>
                         <FormLabel>NIM</FormLabel>
                         <FormControl>
-                          <Input placeholder="Masukkan NIM" {...field} />
+                          <div className="relative">
+                            <BookUser className="absolute left-3 top-3 h-4 w-4 text-indigo-400" />
+                            <Input placeholder="Masukkan NIM" {...field} className="pl-10 focus:ring-2 focus:ring-indigo-300" />
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -126,7 +140,10 @@ const Index = () => {
                       <FormItem>
                         <FormLabel>Email</FormLabel>
                         <FormControl>
-                          <Input placeholder="contoh@email.com" type="email" {...field} />
+                          <div className="relative">
+                            <MailIcon className="absolute left-3 top-3 h-4 w-4 text-indigo-400" />
+                            <Input placeholder="contoh@email.com" type="email" {...field} className="pl-10 focus:ring-2 focus:ring-indigo-300" />
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -139,7 +156,10 @@ const Index = () => {
                       <FormItem>
                         <FormLabel>No. Telepon</FormLabel>
                         <FormControl>
-                          <Input placeholder="08xxxxxxxxxx" {...field} />
+                          <div className="relative">
+                            <Phone className="absolute left-3 top-3 h-4 w-4 text-indigo-400" />
+                            <Input placeholder="08xxxxxxxxxx" {...field} className="pl-10 focus:ring-2 focus:ring-indigo-300" />
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -153,7 +173,7 @@ const Index = () => {
                         <FormLabel>Kategori Barang</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
-                            <SelectTrigger>
+                            <SelectTrigger className="focus:ring-2 focus:ring-indigo-300">
                               <SelectValue placeholder="Pilih kategori barang" />
                             </SelectTrigger>
                           </FormControl>
@@ -178,9 +198,9 @@ const Index = () => {
                         <Popover>
                           <PopoverTrigger asChild>
                             <FormControl>
-                              <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                              <Button variant={"outline"} className={cn("pl-3 text-left font-normal w-full flex justify-between items-center focus:ring-2 focus:ring-indigo-300", !field.value && "text-muted-foreground")}>
                                 {field.value ? format(field.value, "PPP") : <span>Pilih tanggal</span>}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                <CalendarIcon className="ml-2 h-4 w-4 opacity-50" />
                               </Button>
                             </FormControl>
                           </PopoverTrigger>
@@ -200,24 +220,36 @@ const Index = () => {
                     <FormItem>
                       <FormLabel>Deskripsi Detail Barang</FormLabel>
                       <FormControl>
-                        <Textarea placeholder="Berikan deskripsi lengkap tentang barang Anda (minimal 10 karakter)" className="h-32" {...field} />
+                        <Textarea placeholder="Berikan deskripsi lengkap tentang barang Anda (warna, ciri-ciri, lokasi kehilangan, dsb)" className="h-32 focus:ring-2 focus:ring-indigo-300" {...field} />
                       </FormControl>
-                      <FormDescription>Semakin lengkap deskripsi, semakin besar kemungkinan barang Anda ditemukan</FormDescription>
+                      <FormDescription>Semakin lengkap deskripsi, semakin besar kemungkinan barang Anda ditemukan.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
                 <div className="text-center">
-                  <Button type="submit" className="w-full md:w-auto px-10 bg-indigo-600 hover:bg-indigo-700">
+                  <Button type="submit" className="w-full md:w-auto px-10 py-3 bg-gradient-to-r from-indigo-500 to-blue-500 text-white font-semibold rounded-lg shadow-lg hover:from-indigo-600 hover:to-blue-600 transition">
                     Kirim Laporan
                   </Button>
                 </div>
               </form>
             </Form>
           </CardContent>
-          <CardFooter className="flex justify-center text-sm text-gray-500">Findora &copy; 2025 - Sistem Pelaporan Barang Hilang Kampus</CardFooter>
+          <CardFooter className="flex justify-center text-sm text-gray-500">Findora &copy; 2025 &mdash; Sistem Pelaporan Barang Hilang Kampus</CardFooter>
         </Card>
       </div>
+      {/* Animasi fade-in */}
+      <style>
+        {`
+          .animate-fade-in {
+            animation: fadeIn 1s ease;
+          }
+          @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(30px);}
+            to { opacity: 1; transform: translateY(0);}
+          }
+        `}
+      </style>
     </div>
   );
 };
