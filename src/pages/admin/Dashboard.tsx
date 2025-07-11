@@ -109,6 +109,9 @@ const Dashboard = () => {
   const [preview, setPreview] = useState<string | null>(null);
   const [formLoading, setFormLoading] = useState(false);
 
+  // Search khusus untuk inbox laporan
+  const [inboxSearch, setInboxSearch] = useState("");
+
   const fetchItems = async () => {
     setLoading(true);
     try {
@@ -318,13 +321,12 @@ const Dashboard = () => {
     }
   };
 
-  // Tambahkan fungsi untuk membatalkan status selesai
   const markUndone = async (id: number) => {
     try {
       await fetch(`http://localhost:8080/api/lost-reports/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "Diproses" }), // Ganti "Diproses" sesuai status default backend-mu
+        body: JSON.stringify({ status: "Diproses" }),
       });
       setLostReports((prev) => prev.map((r) => (r.id === id ? { ...r, status: "Diproses" } : r)));
       toast({ title: "Status selesai dibatalkan" });
@@ -485,7 +487,7 @@ const Dashboard = () => {
           }}
         >
           <div className="pt-4 px-4 md:px-8 max-w-full">
-            {/* Dialogs */}
+            {/* Dialog Notifikasi */}
             <Dialog open={notifOpen} onOpenChange={setNotifOpen}>
               <DialogContent className="sm:max-w-md dark:bg-[#232526] dark:text-gray-100">
                 <DialogHeader>
@@ -519,8 +521,9 @@ const Dashboard = () => {
               </DialogContent>
             </Dialog>
 
+            {/* Dialog Inbox Laporan Masuk */}
             <Dialog open={inboxOpen} onOpenChange={setInboxOpen}>
-              <DialogContent className="sm:max-w-2xl dark:bg-[#232526] dark:text-gray-100">
+              <DialogContent className="max-w-[90vw] dark:bg-[#232526] dark:text-gray-100">
                 <DialogHeader>
                   <DialogTitle>
                     <div className="flex items-center gap-2">
@@ -529,54 +532,60 @@ const Dashboard = () => {
                   </DialogTitle>
                   <DialogDescription>Daftar laporan barang hilang yang masuk ke sistem.</DialogDescription>
                 </DialogHeader>
-                <div className="max-h-[60vh] overflow-y-auto px-1">
+                {/* Kolom Search */}
+                <div className="mb-4">
+                  <Input placeholder="Cari nama, NIM, kategori, email, atau deskripsi..." className="w-full dark:bg-[#181c24] dark:text-gray-100" value={inboxSearch} onChange={(e) => setInboxSearch(e.target.value)} />
+                </div>
+                <div className="max-h-[75vh] overflow-y-auto px-2">
                   {lostReports.length === 0 ? (
                     <div className="text-center text-gray-500 dark:text-gray-300 py-8">Tidak ada laporan masuk.</div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {lostReports.map((report) => (
-                        <Card key={report.id} className="shadow border-t-4 border-t-indigo-500 hover:shadow-lg transition dark:bg-[#232526] dark:text-gray-100">
-                          <CardHeader className="pb-2">
-                            <CardTitle className="text-base flex items-center gap-2">
-                              <span className="font-semibold">{report.name}</span>
-                              <span className="text-xs text-gray-400">({report.nim})</span>
-                              <Badge className={report.status === "Selesai" ? "bg-green-500" : "bg-yellow-500"}>{report.status}</Badge>
-                            </CardTitle>
-                            <CardDescription className="text-xs text-gray-500 dark:text-gray-300">
-                              {report.category} &middot; {new Date(report.lostDate).toLocaleDateString()}
-                            </CardDescription>
-                          </CardHeader>
-                          <CardContent className="space-y-1 text-sm">
-                            <div>
-                              <span className="font-semibold">Email:</span> {report.email}
-                            </div>
-                            <div>
-                              <span className="font-semibold">No. HP:</span> {report.phone}
-                            </div>
-                            <div>
-                              <span className="font-semibold">Deskripsi:</span>
-                              <div className="text-gray-700 dark:text-gray-200">{report.description}</div>
-                            </div>
-                            <div>
-                              <span className="font-semibold">Waktu Lapor:</span> {new Date(report.createdAt).toLocaleString()}
-                            </div>
-                          </CardContent>
-                          <CardFooter className="flex gap-2 justify-end">
-                            {report.status === "Selesai" ? (
-                              <Button size="sm" variant="outline" className="text-yellow-600 border-yellow-600" onClick={() => markUndone(report.id)}>
-                                Batalkan
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                      {lostReports
+                        .filter((report) => [report.name, report.nim, report.category, report.email, report.phone, report.description].join(" ").toLowerCase().includes(inboxSearch.toLowerCase()))
+                        .map((report) => (
+                          <Card key={report.id} className="w-full shadow-lg border border-indigo-200 rounded-xl bg-white/90 dark:bg-[#232526] dark:text-gray-100 transition hover:scale-[1.02]">
+                            <CardHeader className="pb-2 border-b border-indigo-100 dark:border-gray-700">
+                              <CardTitle className="text-lg font-bold flex items-center gap-2">
+                                <span className="text-indigo-700 dark:text-indigo-300">{report.name}</span>
+                                <span className="text-xs text-gray-400">({report.nim})</span>
+                                <Badge className={report.status === "Selesai" ? "bg-green-500" : "bg-yellow-500"}>{report.status}</Badge>
+                              </CardTitle>
+                              <CardDescription className="text-xs text-gray-500 dark:text-gray-300">
+                                <span className="font-semibold">{report.category}</span> &middot; {new Date(report.lostDate).toLocaleDateString()}
+                              </CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-2 text-sm mt-2">
+                              <div>
+                                <span className="font-semibold text-indigo-600 dark:text-indigo-300">Email:</span> {report.email}
+                              </div>
+                              <div>
+                                <span className="font-semibold text-indigo-600 dark:text-indigo-300">No. HP:</span> {report.phone}
+                              </div>
+                              <div>
+                                <span className="font-semibold text-indigo-600 dark:text-indigo-300">Deskripsi:</span>
+                                <div className="text-gray-700 dark:text-gray-200">{report.description}</div>
+                              </div>
+                              <div>
+                                <span className="font-semibold text-indigo-600 dark:text-indigo-300">Waktu Lapor:</span> {new Date(report.createdAt).toLocaleString()}
+                              </div>
+                            </CardContent>
+                            <CardFooter className="flex gap-2 justify-end mt-2">
+                              {report.status === "Selesai" ? (
+                                <Button size="sm" variant="outline" className="text-yellow-600 border-yellow-600" onClick={() => markUndone(report.id)}>
+                                  Batalkan
+                                </Button>
+                              ) : (
+                                <Button size="sm" variant="outline" className="text-green-600 border-green-600" onClick={() => markDone(report.id)}>
+                                  <CheckCircle className="w-4 h-4 mr-1" /> Tandai Selesai
+                                </Button>
+                              )}
+                              <Button size="sm" variant="outline" className="text-red-500 border-red-500" onClick={() => deleteReport(report.id)}>
+                                <Trash2 className="w-4 h-4 mr-1" /> Hapus
                               </Button>
-                            ) : (
-                              <Button size="sm" variant="outline" className="text-green-600 border-green-600" onClick={() => markDone(report.id)}>
-                                <CheckCircle className="w-4 h-4 mr-1" /> Tandai Selesai
-                              </Button>
-                            )}
-                            <Button size="sm" variant="outline" className="text-red-500 border-red-500" onClick={() => deleteReport(report.id)}>
-                              <Trash2 className="w-4 h-4 mr-1" /> Hapus
-                            </Button>
-                          </CardFooter>
-                        </Card>
-                      ))}
+                            </CardFooter>
+                          </Card>
+                        ))}
                     </div>
                   )}
                 </div>
@@ -588,6 +597,7 @@ const Dashboard = () => {
               </DialogContent>
             </Dialog>
 
+            {/* Dialog Detail Barang */}
             <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
               <DialogContent className="sm:max-w-lg dark:bg-[#232526] dark:text-gray-100">
                 <DialogHeader>
@@ -602,7 +612,7 @@ const Dashboard = () => {
               </DialogContent>
             </Dialog>
 
-            {/* ...lanjutan kode tetap seperti sebelumnya... */}
+            {/* ...lanjutan kode dashboard seperti sebelumnya... */}
             <div className="flex justify-between items-center mb-6">
               <h1 className="text-2xl font-bold text-indigo-800 dark:text-indigo-200">Kelola Barang Hilang & Ditemukan</h1>
               <Dialog open={showDialog} onOpenChange={setShowDialog}>
@@ -844,7 +854,6 @@ const Dashboard = () => {
                 </Pagination>
               </div>
             </div>
-            {/* Tidak ada perubahan pada bagian lain */}
           </div>
         </main>
       </div>
